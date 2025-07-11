@@ -34,6 +34,12 @@ options:
     type: str
     choices: [ lan, san ]
     aliases: [ nd_implementation_type, implementation_type ]
+  persona_vendor:
+    description:
+    - The persona vendor.
+    - This option is only applicable for ND version 4.1.0 and later.
+    type: str
+    choices: [ cisco, ibm ]
   dns_server:
     description:
     - The IP address of the DNS server.
@@ -459,6 +465,7 @@ def main():
             ),
         ),
         persona=dict(type="str", choices=["lan", "san"], aliases=["nd_implementation_type", "implementation_type"]),
+        persona_vendor=dict(type="str", choices=["cisco", "ibm"]),
         state=dict(type="str", default="present", choices=["present", "query"]),
     )
 
@@ -467,6 +474,7 @@ def main():
         supports_check_mode=True,
         required_if=[
             ["state", "present", ["cluster_name", "dns_server", "nodes"]],
+            ["persona", "san", ["persona_vendor"]],
         ],
         required_together=[
             ["proxy_username", "proxy_password"],
@@ -495,6 +503,7 @@ def main():
     ntp_config = nd.params.get("ntp_config")
     nodes = nd.params.get("nodes")
     persona = nd.params.get("persona")
+    persona_vendor = nd.params.get("persona_vendor")
     state = nd.params.get("state")
 
     if state == "query":
@@ -611,6 +620,8 @@ def main():
         # Cluster setup options introduced in ND version 4.1.0 and later
         if nd_version >= "4.1.0":
             payload["clusterConfig"]["persona"] = persona.upper() if isinstance(persona, str) else persona
+            if persona == "san":
+                payload["clusterConfig"]["personaVendor"] = persona_vendor.capitalize()
             payload["clusterConfig"]["externalServices"] = []
             if external_services.get("management_service_ips") is not None:
                 payload["clusterConfig"]["externalServices"].append(
